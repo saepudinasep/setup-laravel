@@ -24,4 +24,13 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-require __DIR__.'/auth.php';
+Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
+    Route::get('/dashboard', fn() => Inertia::render('Admin/Dashboard'))->name('admin.dashboard');
+});
+
+// atau lebih granular pakai permission
+Route::middleware(['auth', 'permission:manage users'])->group(function () {
+    Route::get('/users', [UserController::class, 'index']);
+});
+
+require __DIR__ . '/auth.php';
