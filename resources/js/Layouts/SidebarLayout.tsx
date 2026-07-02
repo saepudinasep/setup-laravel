@@ -1,6 +1,6 @@
-import { PropsWithChildren, ReactNode } from "react";
+import { PropsWithChildren, ReactNode, useEffect, useState } from "react";
 import { Link, router, usePage } from "@inertiajs/react";
-import { LogOut, User as UserIcon } from "lucide-react";
+import { LogOut, Menu, User as UserIcon, X } from "lucide-react";
 import type { User } from "@/types";
 
 export interface SidebarMenuItem {
@@ -58,6 +58,7 @@ export default function SidebarLayout({
 }: PropsWithChildren<SidebarLayoutProps>) {
     const { auth } = usePage<{ auth: { user: User } }>().props;
     const theme = ROLE_THEME[role];
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const initials = auth.user.name
         .split(" ")
@@ -70,19 +71,45 @@ export default function SidebarLayout({
         router.post(route("logout"));
     };
 
+    // Tutup sidebar otomatis setiap kali pindah halaman (khusus tampilan mobile)
+    useEffect(() => {
+        return router.on("navigate", () => setSidebarOpen(false));
+    }, []);
+
     return (
         <div className="flex min-h-screen bg-[#F5F5F3]">
+            {/* Overlay untuk mobile saat sidebar terbuka */}
+            {sidebarOpen && (
+                <div
+                    onClick={() => setSidebarOpen(false)}
+                    className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+                />
+            )}
+
             {/* Sidebar */}
-            <aside className="flex w-64 flex-shrink-0 flex-col justify-between bg-[#12141C] text-slate-300">
+            <aside
+                className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-shrink-0 transform flex-col justify-between bg-[#12141C] text-slate-300 transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
+                    sidebarOpen ? "translate-x-0" : "-translate-x-full"
+                }`}
+            >
                 <div>
                     {/* Brand */}
-                    <div className="flex items-center gap-2.5 px-6 py-6">
-                        <span
-                            className={`h-2.5 w-2.5 rounded-full ${theme.accentBg}`}
-                        />
-                        <span className="text-[15px] font-semibold tracking-tight text-white">
-                            Presline
-                        </span>
+                    <div className="flex items-center justify-between gap-2.5 px-6 py-6">
+                        <div className="flex items-center gap-2.5">
+                            <span
+                                className={`h-2.5 w-2.5 rounded-full ${theme.accentBg}`}
+                            />
+                            <span className="text-[15px] font-semibold tracking-tight text-white">
+                                Presline
+                            </span>
+                        </div>
+                        {/* Tombol tutup, hanya tampil di mobile */}
+                        <button
+                            onClick={() => setSidebarOpen(false)}
+                            className="rounded-lg p-1.5 text-slate-400 hover:bg-white/5 hover:text-white lg:hidden"
+                        >
+                            <X size={18} />
+                        </button>
                     </div>
 
                     {/* Role badge */}
@@ -160,11 +187,21 @@ export default function SidebarLayout({
 
             {/* Main content */}
             <div className="min-w-0 flex-1">
-                <header className="flex items-center justify-between border-b border-black/5 bg-white px-8 py-5">
-                    <h1 className="text-lg font-semibold tracking-tight text-[#1B1D23]">
-                        {pageTitle}
-                    </h1>
-                    <span className="text-xs text-slate-400">
+                <header className="flex items-center justify-between border-b border-black/5 bg-white px-4 py-5 sm:px-8">
+                    <div className="flex items-center gap-3">
+                        {/* Tombol hamburger, hanya tampil di mobile/tablet */}
+                        <button
+                            onClick={() => setSidebarOpen(true)}
+                            className="rounded-lg p-2 text-slate-500 hover:bg-black/5 lg:hidden"
+                            aria-label="Buka menu"
+                        >
+                            <Menu size={20} />
+                        </button>
+                        <h1 className="text-lg font-semibold tracking-tight text-[#1B1D23]">
+                            {pageTitle}
+                        </h1>
+                    </div>
+                    <span className="hidden text-xs text-slate-400 sm:inline">
                         {new Date().toLocaleDateString("id-ID", {
                             weekday: "long",
                             day: "numeric",
@@ -173,7 +210,7 @@ export default function SidebarLayout({
                         })}
                     </span>
                 </header>
-                <main className="p-8">{children}</main>
+                <main className="p-4 sm:p-8">{children}</main>
             </div>
         </div>
     );
