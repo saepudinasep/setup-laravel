@@ -1,59 +1,149 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Setup Laravel — Boilerplate Role-Based (Admin / Staff / User)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Boilerplate **Laravel 12 + Inertia.js + React (TypeScript) + Tailwind CSS** dengan sistem
+multi-role siap pakai (role & permission, dashboard terpisah per role, sidebar bertema warna
+per role). Dokumen ini juga berfungsi sebagai **blueprint** — cukup ganti nama role di beberapa
+titik untuk dipakai ulang di project lain (mis. Admin/Guru/Siswa, Admin/Kasir/Pelanggan, dll),
+tanpa perlu menjelaskan ulang arsitekturnya dari nol ke AI assistant.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Tech Stack
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+| Layer             | Teknologi                    |
+| ----------------- | ---------------------------- |
+| Backend           | Laravel 12 (PHP ^8.2)        |
+| Auth scaffolding  | Laravel Breeze               |
+| Bridge            | Inertia.js v2                |
+| Frontend          | React 18 + TypeScript        |
+| Styling           | Tailwind CSS 3               |
+| Build tool        | Vite                         |
+| Role & permission | spatie/laravel-permission ^6 |
+| Route helper JS   | Ziggy                        |
+| Icon              | lucide-react                 |
+| Testing           | Pest                         |
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## Struktur Proyek yang Relevan
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+```
+app/
+  Models/User.php                          # pakai trait HasRoles (spatie)
+database/
+  migrations/..._create_permission_tables.php
+  seeders/
+    RolePermissionSeeder.php               # definisi role + permission
+    RoleUserSeeder.php                     # user default per role (untuk testing)
+    DatabaseSeeder.php                     # memanggil 2 seeder di atas
+routes/
+  web.php                                  # redirect dashboard sesuai role + route group per role
+resources/js/
+  Layouts/
+    SidebarLayout.tsx                      # sidebar reusable, tema warna per role
+    AuthenticatedLayout.tsx                # layout bawaan Breeze (navbar + hamburger, tidak dipakai dashboard role)
+  Pages/
+    Admin/Dashboard.tsx
+    Staff/Dashboard.tsx
+    User/Dashboard.tsx
+  Components/                              # komponen bawaan Breeze (Dropdown, TextInput, dll)
+bootstrap/app.php                          # alias middleware 'role' & 'permission'
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+---
 
-## Laravel Sponsors
+## Cara Kerja Sistem Role
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+1. **Role & permission** didefinisikan di `database/seeders/RolePermissionSeeder.php`.
+2. **User default** per role dibuat di `database/seeders/RoleUserSeeder.php` (email `{role}@test.com`, password `password`) — untuk kebutuhan testing/demo.
+3. **Routing**: setiap role punya route group sendiri dengan prefix, name, dan middleware `role:{nama_role}`:
+    ```php
+    Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
+        Route::get('/dashboard', fn() => Inertia::render('Admin/Dashboard'))->name('dashboard');
+    });
+    ```
+4. **Redirect generik** `/dashboard` melempar user ke dashboard sesuai role-nya (lihat `match(true)` di `routes/web.php`).
+5. **Halaman dashboard** tiap role ada di `resources/js/Pages/{Role}/Dashboard.tsx`, memakai `SidebarLayout` dengan prop `role`.
+6. **SidebarLayout** (`resources/js/Layouts/SidebarLayout.tsx`) punya `ROLE_THEME` — mapping warna aksen (violet/teal/blue) per role — dan menerima `menus[]` sebagai daftar item navigasi.
 
-### Premium Partners
+---
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+## Instalasi
 
-## Contributing
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+# atur koneksi database di .env, lalu:
+php artisan migrate --seed
+npm install
+npm run dev   # atau: composer run dev (jalankan server + queue + vite sekaligus)
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Login default hasil seeding:
 
-## Code of Conduct
+| Role  | Email          | Password |
+| ----- | -------------- | -------- |
+| admin | admin@test.com | password |
+| staff | staff@test.com | password |
+| user  | user@test.com  | password |
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+---
 
-## Security Vulnerabilities
+## Checklist: Mengganti Role (mis. Admin/Staff/User → Admin/Guru/Siswa)
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Kalau mau reuse boilerplate ini dengan nama role berbeda, titik yang perlu diubah cuma ini:
 
-## License
+1. `database/seeders/RolePermissionSeeder.php` — nama role & permission
+2. `database/seeders/RoleUserSeeder.php` — email/nama user default per role
+3. `routes/web.php` — `match()` redirect + route group (prefix, name, `role:...`) per role
+4. `resources/js/Layouts/SidebarLayout.tsx` — `RoleKey` type + `ROLE_THEME` (label & warna aksen)
+5. `resources/js/Pages/{Role}/Dashboard.tsx` — folder & isi dashboard per role (copy dari salah satu yang ada, ganti label/stat/warna)
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Tidak perlu menyentuh: middleware alias, migration permission tables, komponen Breeze, layout auth.
+
+---
+
+## 🔁 Prompt Template (untuk dipakai ulang di project baru)
+
+Salin prompt di bawah ini dan isi bagian `{{...}}` sesuai kebutuhan project baru, lalu kirim ke
+AI assistant (Claude) untuk regenerasi cepat tanpa menjelaskan ulang arsitekturnya:
+
+```
+Saya punya boilerplate Laravel 12 + Inertia React (TypeScript) + Tailwind dengan sistem
+role menggunakan spatie/laravel-permission, mengikuti pola dari repo saepudinasep/setup-laravel:
+
+- Role & permission didefinisikan di database/seeders/RolePermissionSeeder.php
+- User default per role di database/seeders/RoleUserSeeder.php (email {role}@test.com, password "password")
+- routes/web.php: redirect /dashboard sesuai role via match(true), plus route group per role
+  dengan prefix, name, dan middleware role:{nama_role}
+- resources/js/Layouts/SidebarLayout.tsx: sidebar reusable dengan ROLE_THEME (RoleKey type +
+  warna aksen per role: label, accentText, accentBg, accentBgSoft, accentRing)
+- resources/js/Pages/{Role}/Dashboard.tsx: dashboard per role pakai <SidebarLayout role="..." pageTitle="..." menus={...}>,
+  berisi stat cards + panel "Aktivitas Terbaru"
+
+Tolong adaptasi seluruh pola di atas untuk role berikut:
+- Role 1: {{admin}} — permission: {{manage users, view dashboard admin}}
+- Role 2: {{guru}} — permission: {{manage nilai, view dashboard guru}}
+- Role 3: {{siswa}} — permission: {{view nilai sendiri, view dashboard siswa}}
+
+Ketentuan:
+- Warna aksen tiap role beri warna berbeda (pilih dari palet Tailwind: violet, teal, blue,
+  amber, rose, dst — sesuaikan agar kontras dan enak dilihat)
+- Nama & email user seed default: {{Nama Sesuai Role}} / {{role}}@test.com / password "password"
+- Struktur folder, konvensi penamaan file, dan cara routing HARUS mengikuti persis pola yang sudah ada
+- Jangan ubah bagian yang tidak terkait role (middleware alias, layout auth, komponen Breeze)
+```
+
+Contoh isian cepat: `admin, petugas, siswa` / `admin, kasir, pelanggan` / `admin, guru, siswa` —
+tinggal ganti nama & permission-nya, sisanya AI tinggal ikuti pola yang sudah didokumentasikan
+di atas.
+
+---
+
+## Catatan
+
+- README asli bawaan Laravel skeleton telah diganti dengan dokumen ini agar langsung berguna
+  sebagai referensi arsitektur proyek.
+- Dashboard role saat ini masih berisi data placeholder (`—`) — sambungkan ke data asli sesuai
+  kebutuhan masing-masing project turunan.
